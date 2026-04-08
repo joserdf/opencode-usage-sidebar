@@ -2,6 +2,7 @@
   "name": "opencode-limits-sidebar",
   "version": "1.0.0",
   "type": "module",
+  "license": "MIT",
   "description": "OpenCode plugin that displays usage limits in the TUI sidebar",
   "main": "./dist/server.js",
   "types": "./dist/server.d.ts",
