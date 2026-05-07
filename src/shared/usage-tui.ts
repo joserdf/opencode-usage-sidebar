@@ -1,14 +1,5 @@
 import type { ProviderUsage, UsageLine } from "./limits.js"
 
-const PROVIDERS = ["claude", "codex", "copilot"] as const
-type ProviderKey = typeof PROVIDERS[number]
-
-const DISPLAY_NAMES: Record<ProviderKey, string> = {
-    claude: "Claude",
-    codex: "Codex",
-    copilot: "Copilot",
-}
-
 interface UsageTuiMetrics {
     cost: number | null
     requests: number | null
@@ -37,6 +28,17 @@ export interface FetchResult {
 
 let lastGood: ProviderUsage[] = []
 
+const getDisplayName = (provider: string): string => {
+    const map: Record<string, string> = {
+        claude: "Claude",
+        codex: "Codex",
+        copilot: "Copilot",
+        openai: "OpenAI",
+        openrouter: "OpenRouter",
+    }
+    return map[provider] || provider.charAt(0).toUpperCase() + provider.slice(1)
+}
+
 const planLabel = (window: string): string => {
     if (window === "5h") return "Session"
     if (window === "7d") return "Weekly"
@@ -44,38 +46,10 @@ const planLabel = (window: string): string => {
     return window
 }
 
-const failedRow = (key: ProviderKey): ProviderUsage => ({
-    displayName: DISPLAY_NAMES[key],
-    plan: "error",
-    fetchedAt: new Date().toISOString(),
-    lines: [{ label: "—", type: "progress", used: 0, limit: 0, resetsAt: null }],
-})
-
-const translate = (key: ProviderKey, p: UsageTuiPayload): ProviderUsage => {
-    if (p.error) return failedRow(key)
-    const m = p.metrics
-    const limit = m.limit ?? 0
-    const remaining = m.remaining ?? limit
-    const label = planLabel(p.window)
-    const line: UsageLine = {
-        label,
-        type: "progress",
-        used: limit - remaining,
-        limit,
-        resetsAt: m.reset_at,
-    }
-    return {
-        displayName: DISPLAY_NAMES[key],
-        plan: label,
-        fetchedAt: p.updated_at,
-        lines: [line],
-    }
-}
-
-export const fetchUsage = async (): Promise<FetchResult> => {
+const spawnUsageTui = async (window: string): Promise<UsageTuiResponse | null> => {
     try {
         const proc = Bun.spawn(
-            ["usage-tui", "show", "--provider", "all", "--window", "5h", "--json"],
+            ["usage-tui", "show", "--provider", "all", "--window", window, "--json"],
             { stdout: "pipe", stderr: "pipe" },
         )
 
@@ -84,16 +58,77 @@ export const fetchUsage = async (): Promise<FetchResult> => {
             proc.exited,
         ])
 
-        if (exit !== 0) {
+        if (exit !== 0) return null
+        return JSON.parse(stdout) as UsageTuiResponse
+    } catch {
+        return null
+    }
+}
+
+export const fetchUsage = async (): Promise<FetchResult> => {
+    try {
+        const data5h = await spawnUsageTui("5h")
+        await new Promise(resolve => setTimeout(resolve, 500))
+        const data7d = await spawnUsageTui("7d")
+
+        if (!data5h) {
             return { providers: lastGood, binaryMissing: false }
         }
 
-        const parsed = JSON.parse(stdout) as UsageTuiResponse
         const providers: ProviderUsage[] = []
-        for (const key of PROVIDERS) {
-            const payload = parsed[key]
-            if (payload) providers.push(translate(key, payload))
+
+        // Discover all configured providers dynamically
+        for (const providerKey of Object.keys(data5h)) {
+            const payload5h = data5h[providerKey]
+            if (!payload5h) continue
+
+            const lines: UsageLine[] = []
+            const error = payload5h.error
+
+            if (error) {
+                // Show error row (e.g., rate limited, auth failed)
+                lines.push({ label: "—", type: "progress", used: 0, limit: 0, resetsAt: null })
+            } else {
+                // Add Session (5h) line
+                const m5h = payload5h.metrics
+                const limit5h = m5h.limit ?? 0
+                const remaining5h = m5h.remaining ?? limit5h
+
+                lines.push({
+                    label: "Session",
+                    type: "progress",
+                    used: limit5h - remaining5h,
+                    limit: limit5h,
+                    resetsAt: m5h.reset_at,
+                })
+
+                // Try to add Weekly (7d) line for all providers
+                if (data7d?.[providerKey]) {
+                    const payload7d = data7d[providerKey]
+                    if (!payload7d.error) {
+                        const m7d = payload7d.metrics
+                        const limit7d = m7d.limit ?? 0
+                        const remaining7d = m7d.remaining ?? limit7d
+
+                        lines.push({
+                            label: "Weekly",
+                            type: "progress",
+                            used: limit7d - remaining7d,
+                            limit: limit7d,
+                            resetsAt: m7d.reset_at,
+                        })
+                    }
+                }
+            }
+
+            providers.push({
+                displayName: getDisplayName(providerKey),
+                plan: error ? "error" : "Usage",
+                fetchedAt: payload5h.updated_at,
+                lines,
+            })
         }
+
         if (providers.length > 0) lastGood = providers
         return { providers, binaryMissing: false }
     } catch (e) {
