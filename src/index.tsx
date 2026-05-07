@@ -16,8 +16,7 @@ import {
     resetText,
     rightAlign,
 } from "./shared/limits.js"
-
-const OPENUSAGE_API = "http://127.0.0.1:6736/v1/usage"
+import { fetchUsage as fetchUsageData } from "./shared/usage-tui.js"
 
 const LimitRow = (props: {
     palette: Palette
@@ -74,14 +73,12 @@ const SidebarLimits = (props: { theme: Record<string, unknown> }) => {
 
     const fetchUsage = async () => {
         try {
-            const res = await fetch(OPENUSAGE_API)
-            if (!res.ok) throw new Error(`HTTP ${res.status}`)
-            const data = await res.json() as ProviderUsage[]
-            setProviders(data)
-            setErrorMsg("")
-        } catch {
-            if (providers().length === 0) {
-                setErrorMsg("OpenUsage offline")
+            const result = await fetchUsageData()
+            setProviders(result.providers)
+            if (result.binaryMissing) {
+                setErrorMsg("usage-tui not installed")
+            } else {
+                setErrorMsg("")
             }
         } finally {
             setLoading(false)
@@ -128,6 +125,6 @@ const tui: TuiPlugin = (api) => {
 }
 
 export default {
-    id: "opencode-limits-sidebar",
+    id: "opencode-usage-sidebar",
     tui,
 }

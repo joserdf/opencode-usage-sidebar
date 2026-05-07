@@ -1,11 +1,40 @@
 {
-  "name": "opencode-limits-sidebar",
-  "version": "1.0.0",
+  "name": "@joserdf/opencode-usage-sidebar",
+  "version": "0.1.0",
   "type": "module",
   "license": "MIT",
-  "description": "OpenCode plugin that displays usage limits in the TUI sidebar",
+  "description": "OpenCode plugin that displays Claude/Codex/Copilot usage limits in the TUI sidebar, powered by usage-tui (Linux fork of opencode-limits-sidebar).",
+  "author": "joserdf (https://github.com/joserdf)",
+  "homepage": "https://github.com/joserdf/opencode-usage-sidebar#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joserdf/opencode-usage-sidebar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/joserdf/opencode-usage-sidebar/issues"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "sidebar",
+    "usage",
+    "limits",
+    "claude",
+    "codex",
+    "copilot",
+    "tui",
+    "usage-tui"
+  ],
   "main": "./dist/server.js",
   "types": "./dist/server.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/server.d.ts",
@@ -31,6 +60,7 @@
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc",
     "dev": "opencode plugin dev",
+    "prepublishOnly": "npm run build",
     "test": "npm run build && vitest run --coverage"
   },
   "peerDependencies": {
@@ -45,6 +75,7 @@
     "@opencode-ai/plugin": "^1.3.2",
     "@solidjs/testing-library": "^0.8.10",
     "@testing-library/jest-dom": "^6.9.1",
+    "@types/bun": "^1.3.13",
     "@types/node": "^20.0.0",
     "@vitest/coverage-v8": "^4.1.2",
     "jsdom": "^29.0.1",

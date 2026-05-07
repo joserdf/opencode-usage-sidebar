@@ -5,6 +5,6 @@ const server: Plugin = () => Promise.resolve({
 })
 
 export default {
-    id: "opencode-limits-sidebar",
+    id: "opencode-usage-sidebar",
     server,
 }
