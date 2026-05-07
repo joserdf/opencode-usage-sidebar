@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "description": "OpenCode plugin that displays Claude/Codex/Copilot usage limits in the TUI sidebar, powered by usage-tui (Linux fork of opencode-limits-sidebar).",
-  "author": "joserdf (https://github.com/joserdf)",
+  "author": "joserdf",
   "homepage": "https://github.com/joserdf/opencode-usage-sidebar#readme",
   "repository": {
     "type": "git",
