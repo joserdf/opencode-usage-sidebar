@@ -1,6 +1,6 @@
 {
   "name": "@joserdf/opencode-usage-sidebar",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "license": "MIT",
   "description": "OpenCode plugin that displays Claude/Codex/Copilot usage limits in the TUI sidebar, powered by usage-tui (Linux fork of opencode-limits-sidebar).",
