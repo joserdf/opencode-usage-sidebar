@@ -28,6 +28,20 @@ export interface FetchResult {
 
 let lastGood: ProviderUsage[] = []
 
+// Per-provider rate limit cooldown tracking (provider -> timestamp of last failure)
+const providerFailures = new Map<string, number>()
+const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes
+
+const isProviderInCooldown = (provider: string): boolean => {
+    const lastFailTime = providerFailures.get(provider)
+    if (!lastFailTime) return false
+    return Date.now() - lastFailTime < RATE_LIMIT_COOLDOWN_MS
+}
+
+const markProviderFailed = (provider: string): void => {
+    providerFailures.set(provider, Date.now())
+}
+
 const getDisplayName = (provider: string): string => {
     const map: Record<string, string> = {
         claude: "Claude",
@@ -86,6 +100,8 @@ export const fetchUsage = async (): Promise<FetchResult> => {
             const error = payload5h.error
 
             if (error) {
+                // Mark provider as failed for rate limit cooldown
+                markProviderFailed(providerKey)
                 // Show error row (e.g., rate limited, auth failed)
                 lines.push({ label: "—", type: "progress", used: 0, limit: 0, resetsAt: null })
             } else {
@@ -102,8 +118,8 @@ export const fetchUsage = async (): Promise<FetchResult> => {
                     resetsAt: m5h.reset_at,
                 })
 
-                // Try to add Weekly (7d) line for all providers
-                if (data7d?.[providerKey]) {
+                // Try to add Weekly (7d) line only if provider is NOT in cooldown
+                if (!isProviderInCooldown(providerKey) && data7d?.[providerKey]) {
                     const payload7d = data7d[providerKey]
                     if (!payload7d.error) {
                         const m7d = payload7d.metrics
@@ -117,6 +133,9 @@ export const fetchUsage = async (): Promise<FetchResult> => {
                             limit: limit7d,
                             resetsAt: m7d.reset_at,
                         })
+                    } else {
+                        // Mark provider as failed if 7d query returns error
+                        markProviderFailed(providerKey)
                     }
                 }
             }
